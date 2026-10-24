@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Beamdrop</title>
+<meta name="description" content="Send files, photos and text between your devices. Free and private.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+<style>
+:root{--bg:#f5f5f7;--card:#fff;--tx:#1d1d1f;--mu:#6e6e73;--bd:#e5e5ea;--ac:#0071e3;--ok:#1a9b4b}
+@media(prefers-color-scheme:dark){:root{--bg:#000;--card:#1c1c1e;--tx:#f5f5f7;--mu:#98989d;--bd:#2c2c2e;--ac:#2997ff;--ok:#30d158}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+.app{max-width:460px;margin:0 auto;padding:0 20px 40px;min-height:100vh}
+header{display:flex;justify-content:space-between;align-items:center;padding:20px 0}
+.logo{font-weight:600;font-size:18px}
+.pill{font-size:13px;color:var(--mu);background:var(--card);padding:6px 12px;border-radius:99px}
+.pill.ok{color:var(--ok)}
+.view{background:var(--card);border-radius:24px;padding:28px 24px;box-shadow:0 2px 20px rgba(0,0,0,.05)}
+#pair{text-align:center}
+#share{display:none;background:none;box-shadow:none;padding:0}
+body.linked #pair{display:none}
+body.linked #share{display:block}
+h1{font-size:28px;line-height:1.15;letter-spacing:-.02em;margin:0 0 8px}
+.sub{color:var(--mu);font-size:14px;margin:0}
+.qrwrap{display:inline-block;background:#fff;padding:12px;border-radius:18px;margin:24px 0 12px;min-width:216px;min-height:216px;border:1px solid var(--bd)}
+#qr{width:192px;height:192px}
+#qr img,#qr canvas{width:192px!important;height:192px!important;display:block}
+.code{font:600 32px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.18em;padding-left:.18em}
+.link{background:none;border:0;color:var(--ac);font:inherit;font-size:14px;cursor:pointer;padding:6px}
+.or{display:flex;align-items:center;gap:12px;color:var(--mu);font-size:13px;margin:18px 0}
+.or:before,.or:after{content:"";flex:1;height:1px;background:var(--bd)}
+.join,.text{display:flex;gap:8px}
+input[type=text],input:not([type]){flex:1;min-width:0;font:inherit;color:var(--tx);background:var(--bg);border:2px solid transparent;border-radius:14px;padding:13px 16px;outline:none}
+input:focus{border-color:var(--ac)}
+#joinInput{text-align:center;text-transform:uppercase;letter-spacing:.2em;font-weight:600}
+.btn{font:inherit;font-weight:600;color:#fff;background:var(--ac);border:0;border-radius:14px;padding:0 22px;cursor:pointer}
+.btn:active{opacity:.8}
+.drop{display:grid;justify-items:center;gap:2px;padding:40px 16px;background:var(--card);border-radius:24px;border:2px dashed var(--bd);text-align:center;cursor:pointer;margin-bottom:12px;transition:.15s}
+.drop:hover,body.drag .drop{border-color:var(--ac)}
+.plus{width:52px;height:52px;border-radius:50%;background:var(--ac);color:#fff;font-size:30px;line-height:50px;margin-bottom:10px}
+.text{margin-bottom:20px}
+.item{display:flex;gap:12px;align-items:center;background:var(--card);border-radius:18px;padding:12px;margin-bottom:8px}
+.ico{width:44px;height:44px;border-radius:12px;background:var(--bg);display:grid;place-items:center;font-size:20px;overflow:hidden;flex:none}
+.thumb{width:100%;height:100%;object-fit:cover}
+.body{flex:1;min-width:0}
+.name{font-weight:500;white-space:pre-wrap;word-break:break-word;max-height:4.4em;overflow:auto}
+.meta{font-size:13px;color:var(--mu)}
+.bar{height:4px;background:var(--bd);border-radius:9px;margin-top:6px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--ac);transition:width .1s}
+.item .btn,.item a{font-size:14px;padding:7px 14px;text-decoration:none;color:#fff;background:var(--ac);border-radius:99px;border:0;font-weight:600;cursor:pointer}
+.empty{text-align:center;color:var(--mu);font-size:14px;padding:12px}
+.toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);background:rgba(30,30,30,.92);color:#fff;padding:10px 18px;border-radius:99px;font-size:14px;opacity:0;pointer-events:none;transition:.2s}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">⚡ Beamdrop</div>
+    <div id="status" class="pill">Starting…</div>
+  </header>
+
+  <section id="pair" class="view">
+    <h1>Send anything to any device.</h1>
+    <p class="sub">Open Beamdrop on your other device and scan this code.</p>
+    <div class="qrwrap"><div id="qr"></div></div>
+    <div id="code" class="code">······</div>
+    <button id="copyLink" class="link">Copy link</button>
+    <div class="or"><span>or enter a code</span></div>
+    <div class="join">
+      <input id="joinInput" maxlength="6" placeholder="ABC123" autocomplete="off" spellcheck="false">
+      <button id="joinBtn" class="btn">Join</button>
+    </div>
+  </section>
+
+  <section id="share" class="view">
+    <label class="drop">
+      <input id="file" type="file" multiple hidden>
+      <span class="plus">+</span>
+      <b>Drop files or tap to choose</b>
+      <span class="sub">You can also paste an image</span>
+    </label>
+    <div class="text">
+      <input id="txt" placeholder="Send a message or link" autocomplete="off">
+      <button id="sendTxt" class="btn">Send</button>
+    </div>
+    <div id="feed"></div>
+  </section>
+</div>
+<div id="toast" class="toast"></div>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const CHUNK = 32768, ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', VALID = /^[A-HJ-NP-Z2-9]{6}$/;
+const PEER_CDN = ['https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js', 'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js', 'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js'];
+const QR_CDN = ['https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js', 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js'];
+const conns = new Set();
+let peer, link = '', qrReady = false, queue = Promise.resolve();
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), n => ALPHA[n % 32]).join('');
+const fmt = b => b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(1) + ' KB' : b < 1073741824 ? (b / 1048576).toFixed(1) + ' MB' : (b / 1073741824).toFixed(2) + ' GB';
+const load = urls => new Promise(res => {
+  const next = () => {
+    const u = urls.shift(); if (!u) return res(false);
+    const s = document.createElement('script'); s.src = u;
+    s.onload = () => res(true); s.onerror = () => { s.remove(); next(); };
+    document.head.append(s);
+  };
+  next();
+});
+function toast(m) {
+  const t = $('#toast'); t.textContent = m; t.classList.add('show');
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2400);
+}
+function status(m, ok) { const s = $('#status'); s.textContent = m; s.className = 'pill' + (ok ? ' ok' : ''); }
+function refresh() {
+  const n = conns.size;
+  document.body.classList.toggle('linked', n > 0);
+  status(n ? `Connected · ${n} device${n > 1 ? 's' : ''}` : 'Ready · waiting for a device', n > 0);
+}
+
+/* ---------- code + QR (shown instantly, independent of the network) ---------- */
+function showCode(c) {
+  $('#code').textContent = c;
+  link = location.href.split('#')[0] + '#' + c;
+  drawQR();
+}
+function drawQR() {
+  if (!qrReady || !link) return;
+  $('#qr').innerHTML = '';
+  new QRCode($('#qr'), { text: link, width: 192, height: 192, correctLevel: QRCode.CorrectLevel.M });
+}
+function fail(e) {
+  status(e.type === 'peer-unavailable' ? 'Code not found' : 'Connection problem · retrying');
+}
+
+/* ---------- connection ---------- */
+function host(c) {
+  showCode(c);
+  peer = new Peer('bd-' + c);
+  peer.on('open', refresh);
+  peer.on('connection', setup);
+  peer.on('disconnected', () => peer.reconnect());
+  peer.on('error', e => { if (e.type === 'unavailable-id') { peer.destroy(); host(newCode()); } else fail(e); });
+}
+function join(c) {
+  showCode(c);
+  peer = new Peer();
+  peer.on('open', () => { status('Connecting…'); setup(peer.connect('bd-' + c, { reliable: true })); });
+  peer.on('disconnected', () => peer.reconnect());
+  peer.on('error', fail);
+}
+function setup(c) {
+  const add = () => { conns.add(c); refresh(); toast('Connected'); };
+  const gone = () => { conns.delete(c); refresh(); };
+  c.open ? add() : c.on('open', add);
+  c.on('data', d => onData(c, d));
+  c.on('close', gone); c.on('error', gone);
+}
+
+/* ---------- feed ---------- */
+function addItem({ dir, name, size, text }) {
+  const empty = $('.empty'); if (empty) empty.remove();
+  const el = document.createElement('div'); el.className = 'item';
+  el.innerHTML = '<div class="ico"></div><div class="body"><div class="name"></div><div class="meta"></div><div class="bar"><i></i></div></div><div class="act"></div>';
+  const t = text !== undefined;
+  el.querySelector('.ico').textContent = t ? '💬' : dir === 'in' ? '⬇️' : '⬆️';
+  el.querySelector('.name').textContent = t ? text : name;
+  el.querySelector('.meta').textContent = t ? (dir === 'in' ? 'Received' : 'Sent') : (dir === 'in' ? 'Receiving · ' : 'Sending · ') + fmt(size);
+  if (t) el.querySelector('.bar').remove();
+  $('#feed').prepend(el);
+  return el;
+}
+function addText(dir, text) {
+  const el = addItem({ dir, text });
+  const b = document.createElement('button'); b.className = 'btn'; b.textContent = 'Copy';
+  b.onclick = () => navigator.clipboard.writeText(text).then(() => toast('Copied'), () => toast('Copy failed'));
+  el.querySelector('.act').append(b);
+}
+function setProg(el, p) { const i = el.querySelector('.bar i'); if (i) i.style.width = (p * 100) + '%'; }
+function finish(el, label, blob, name, type) {
+  el.querySelector('.meta').textContent = label;
+  const bar = el.querySelector('.bar'); if (bar) bar.remove();
+  if (!blob) return;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = name; a.textContent = 'Save';
+  el.querySelector('.act').append(a);
+  if (type.startsWith('image/')) {
+    const im = new Image(); im.src = url; im.className = 'thumb'; im.alt = '';
+    el.querySelector('.ico').replaceChildren(im);
+  }
+}
+
+/* ---------- receive ---------- */
+function onData(c, d) {
+  if (d && d.t === 'text') return addText('in', String(d.v));
+  if (d && d.t === 'file') {
+    c.rx = { m: d, parts: [], got: 0, el: addItem({ dir: 'in', name: String(d.name), size: d.size }) };
+    if (!d.size) complete(c);
+    return;
+  }
+  if (c.rx && d && typeof d.byteLength === 'number') {
+    c.rx.parts.push(d); c.rx.got += d.byteLength;
+    setProg(c.rx.el, c.rx.got / c.rx.m.size);
+    if (c.rx.got >= c.rx.m.size) complete(c);
+  }
+}
+function complete(c) {
+  const { m, parts, el } = c.rx; c.rx = null;
+  finish(el, 'Received · ' + fmt(m.size), new Blob(parts, { type: m.type }), String(m.name), m.type || '');
+}
+
+/* ---------- send ---------- */
+function sendText() {
+  const v = $('#txt').value;
+  if (!v.trim()) return;
+  if (!conns.size) return toast('Connect a device first');
+  conns.forEach(c => c.open && c.send({ t: 'text', v }));
+  addText('out', v); $('#txt').value = '';
+}
+function sendFiles(list) {
+  [...list].forEach(f => { queue = queue.then(() => sendFile(f)).catch(() => toast('Transfer failed')); });
+}
+async function sendFile(f) {
+  const live = () => [...conns].filter(c => c.open);
+  if (!live().length) return toast('Connect a device first');
+  const el = addItem({ dir: 'out', name: f.name, size: f.size });
+  live().forEach(c => c.send({ t: 'file', name: f.name, size: f.size, type: f.type }));
+  for (let o = 0; o < f.size; o += CHUNK) {
+    const buf = await f.slice(o, o + CHUNK).arrayBuffer();
+    for (const c of live()) {
+      while (c.dataChannel && c.dataChannel.bufferedAmount > 4e6) await sleep(25);
+      c.send(buf);
+    }
+    setProg(el, Math.min(1, (o + CHUNK) / f.size));
+  }
+  finish(el, 'Sent · ' + fmt(f.size));
+}
+
+/* ---------- events ---------- */
+$('#file').onchange = e => { sendFiles(e.target.files); e.target.value = ''; };
+$('#sendTxt').onclick = sendText;
+$('#txt').onkeydown = e => { if (e.key === 'Enter') sendText(); };
+$('#copyLink').onclick = () => navigator.clipboard.writeText(link).then(() => toast('Link copied'), () => toast('Copy failed'));
+const go = () => {
+  const v = $('#joinInput').value.trim().toUpperCase();
+  if (!VALID.test(v)) return toast('Enter the 6-character code');
+  location.hash = v; location.reload();
+};
+$('#joinBtn').onclick = go;
+$('#joinInput').onkeydown = e => { if (e.key === 'Enter') go(); };
+['dragenter', 'dragover'].forEach(t => addEventListener(t, e => { e.preventDefault(); document.body.classList.add('drag'); }));
+addEventListener('dragleave', e => { if (!e.relatedTarget) document.body.classList.remove('drag'); });
+addEventListener('drop', e => { e.preventDefault(); document.body.classList.remove('drag'); sendFiles(e.dataTransfer.files); });
+addEventListener('paste', e => { const f = e.clipboardData && e.clipboardData.files; if (f && f.length) { e.preventDefault(); sendFiles(f); } });
+
+/* ---------- start ---------- */
+(async () => {
+  const h = location.hash.slice(1).toUpperCase(), guest = VALID.test(h), c = guest ? h : newCode();
+  $('#feed').innerHTML = '<p class="empty">Files and messages appear here.</p>';
+  showCode(c);
+  load(QR_CDN.slice()).then(ok => { qrReady = ok; drawQR(); });
+  if (!await load(PEER_CDN.slice())) return status('No internet connection');
+  guest ? join(c) : host(c);
+})();
+</script>
+</body>
+</html>
